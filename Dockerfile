@@ -1,49 +1,32 @@
-# Stage 1: Build
-FROM node:lts-alpine3.14 as build
+# Brug en node image som base
+FROM node:16-alpine AS build
 
-RUN apk update && \
-  apk upgrade && \
-  apk add --no-cache bash git openssh
-
-RUN mkdir /app
-
+# Sæt arbejdsmappen til /app
 WORKDIR /app
 
-COPY package.json .
+# Kopier package.json og package-lock.json til arbejdsbiblioteket
+COPY package*.json ./
 
-RUN npm install -g npm@latest typescript@latest
-
+# Installer afhængigheder
 RUN npm install
 
+# Kopier resten af app-kilderne til arbejdsbiblioteket
 COPY . .
 
+# Byg appen til produktionsbrug
 RUN npm run build
 
-# Stage 2: Production
-FROM node:lts-alpine3.14
+# Brug en nginx image som base til den endelige container
+FROM nginx:alpine
 
-RUN mkdir -p /app/build
+# Kopier de byggede filer til nginx' html mappe
+COPY --from=build /app/build /usr/share/nginx/html
 
-RUN apk update && \
-  apk upgrade && \
-  apk add git
+# Kopier nginx konfigurationsfil (valgfrit)
+# COPY nginx.conf /etc/nginx/nginx.conf
 
-WORKDIR /app
+# Eksponer port 80
+EXPOSE 80
 
-COPY --from=build /app/package.json .
-
-RUN npm install --production
-
-COPY --from=build /app/build ./build
-COPY --from=build /app/src/auth_config.json ./src/auth_config.json
-COPY --from=build /app/server.js .
-COPY --from=build /app/api-server.js .
-
-EXPOSE 3000
-EXPOSE 3001
-
-ENV SERVER_PORT=3000
-ENV API_PORT=3001
-ENV NODE_ENV=production
-
-CMD ["npm", "run", "prod"]
+# Start nginx
+CMD ["nginx", "-g", "daemon off;"]
