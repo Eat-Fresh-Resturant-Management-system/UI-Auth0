@@ -1,3 +1,4 @@
+# Stage 1: Build
 FROM node:lts-alpine3.14 as build
 
 RUN apk update && \
@@ -10,16 +11,15 @@ WORKDIR /app
 
 COPY package.json .
 
-RUN npm install -g --force npm@latest typescript@latest yarn@latest
+RUN npm install -g npm@latest typescript@latest
 
-RUN yarn install
+RUN npm install
 
 COPY . .
 
-RUN yarn build
+RUN npm run build
 
-# ---------------
-
+# Stage 2: Production
 FROM node:lts-alpine3.14
 
 RUN mkdir -p /app/build
@@ -32,7 +32,7 @@ WORKDIR /app
 
 COPY --from=build /app/package.json .
 
-RUN yarn install --production
+RUN npm install --production
 
 COPY --from=build /app/build ./build
 COPY --from=build /app/src/auth_config.json ./src/auth_config.json
@@ -44,6 +44,6 @@ EXPOSE 3001
 
 ENV SERVER_PORT=3000
 ENV API_PORT=3001
-ENV NODE_ENV production
+ENV NODE_ENV=production
 
-CMD ["yarn", "prod"]
+CMD ["npm", "run", "prod"]
